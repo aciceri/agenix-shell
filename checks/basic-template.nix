@@ -18,7 +18,7 @@
     ${flake.devShells.${system}.default.shellHook}
     [[ $AGENIX_foo == "I believe that Club-Mate is overrated" ]] || exit 1
   '';
-  
+
   home = pkgs.runCommand "create-home" {} ''
     mkdir -p $out/.ssh
     cp ${./id_rsa} $out/.ssh/id_rsa
