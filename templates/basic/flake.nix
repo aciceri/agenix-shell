@@ -23,11 +23,12 @@
       perSystem = {
         pkgs,
         config,
+        lib,
         ...
       }: {
         devShells.default = pkgs.mkShell {
           shellHook = ''
-            source ${config.agenix.installationScript}/bin/${config.agenix.installationScript.name}
+            source ${lib.getExe config.agenix.installationScript}
           '';
         };
       };
