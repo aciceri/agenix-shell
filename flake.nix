@@ -15,6 +15,7 @@
         ./flakeModules
         ./formatting
         ./checks
+        ./ci
       ];
     });
 }
