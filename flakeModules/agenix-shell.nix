@@ -79,7 +79,7 @@ in {
     pkgs,
     ...
   }: {
-    options.agenix = {
+    options.agenix-shell = {
       package = mkPackageOption pkgs "rage" {};
 
       _installSecrets = mkOption {
@@ -90,7 +90,7 @@ in {
             # shellcheck disable=SC2086
             rm -rf "${cfg.secretsPath}"
           ''
-          + lib.concatStrings (lib.mapAttrsToList (_: config.agenix._installSecret) cfg.secrets);
+          + lib.concatStrings (lib.mapAttrsToList (_: config.agenix-shell._installSecret) cfg.secrets);
       };
 
       _installSecret = mkOption {
@@ -114,7 +114,7 @@ in {
             umask u=r,g=,o=
             test -f "${secret.file}" || echo '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
             test -d "$(dirname "${secret.path}")" || echo "[agenix] WARNING: $(dirname "$TMP_FILE") does not exist!"
-            LANG=${config.i18n.defaultLocale or "C"} ${lib.getExe config.agenix.package} --decrypt "''${IDENTITIES[@]}" -o "${secret.path}" "${secret.file}"
+            LANG=${config.i18n.defaultLocale or "C"} ${lib.getExe config.agenix-shell.package} --decrypt "''${IDENTITIES[@]}" -o "${secret.path}" "${secret.file}"
           )
 
           chmod ${secret.mode} "${secret.path}"
@@ -138,7 +138,7 @@ in {
         default = pkgs.writeShellApplication {
           name = "install-agenix-shell";
           runtimeInputs = [];
-          text = config.agenix._installSecrets;
+          text = config.agenix-shell._installSecrets;
         };
       };
     };

@@ -28,7 +28,7 @@
       }: {
         devShells.default = pkgs.mkShell {
           shellHook = ''
-            source ${lib.getExe config.agenix.installationScript}
+            source ${lib.getExe config.agenix-shell.installationScript}
           '';
         };
       };
