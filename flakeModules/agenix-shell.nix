@@ -1,5 +1,4 @@
 {
-  self,
   config,
   lib,
   flake-parts-lib,
@@ -105,6 +104,12 @@ in {
           AGENIX_${secret.name}=$(cat "$AGENIX_${secret.name}_PATH")
           export AGENIX_${secret.name}_PATH
           export AGENIX_${secret.name}
+
+          function cleanup_secrets() {
+            rm -rf "${cfg.secretsPath}"
+          }
+
+          trap cleanup_secrets EXIT
         '';
       };
 
