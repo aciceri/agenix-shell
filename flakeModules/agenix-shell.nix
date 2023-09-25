@@ -80,7 +80,9 @@ in {
     ...
   }: {
     options.agenix-shell = {
-      package = mkPackageOption pkgs "rage" {};
+      package = mkPackageOption pkgs "age" {
+	default = "rage";
+      };
 
       _installSecrets = mkOption {
         type = types.str;
