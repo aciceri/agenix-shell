@@ -22,16 +22,19 @@
 
       file = mkOption {
         type = types.path;
+        description = "Path to the age encrypted secret file.";
       };
 
       path = mkOption {
         type = types.str; # TODO or path?
         default = "${cfg.secretsPath}/${config.name}";
+        internal = true;
       };
 
       mode = mkOption {
         type = types.str;
         default = "0400";
+        description = "Permissions for the unencrypted secret.";
       };
     };
   });
@@ -39,11 +42,24 @@ in {
   options.agenix-shell = {
     secrets = mkOption {
       type = types.attrsOf secretType;
+      description = ''
+        Attribute set containing secret declarations.
+      '';
+      example = lib.literalExpression ''
+        {
+          foo.file = "secrets/foo.age";
+          bar = {
+            file = "secrets/bar.age";
+            mode = "0440";
+          };
+        }
+      '';
     };
 
     secretsPath = mkOption {
       type = types.str; # TODO or path?
       default = ''/run/user/$(id -u)/agenix-shell/$(git rev-parse --show-toplevel | xargs basename)'';
+      internal = true;
     };
 
     identityPaths = mkOption {
@@ -52,6 +68,9 @@ in {
         "$HOME/.ssh/id_ed25519"
         "$HOME/.ssh/id_rsa"
       ];
+      description = ''
+        Paths to keys used by `age` to decrypt secrets.
+      '';
     };
   };
 
