@@ -7,7 +7,7 @@
   inherit (lib) mkOption mkPackageOption types;
   inherit (flake-parts-lib) mkPerSystemOption;
 
-  cfg = config.agenix;
+  cfg = config.agenix-shell;
 
   secretType = types.submodule ({
     name,
@@ -36,7 +36,7 @@
     };
   });
 in {
-  options.agenix = {
+  options.agenix-shell = {
     secrets = mkOption {
       type = types.attrsOf secretType;
     };

@@ -14,7 +14,7 @@
         inputs.agenix-shell.flakeModules.default
       ];
 
-      agenix = {
+      agenix-shell = {
         secrets = {
           foo.file = ./secrets/foo.age;
         };
