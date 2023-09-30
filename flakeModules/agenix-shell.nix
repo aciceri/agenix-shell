@@ -9,14 +9,11 @@
 
   cfg = config.agenix-shell;
 
-  secretType = types.submodule ({
-    config,
-    ...
-  }: {
+  secretType = types.submodule ({config, ...}: {
     options = {
       name = mkOption {
         default = config._module.args.name;
-	description = "Name of the file used in {option}`agenix-shell.secretsPath`.";
+        description = "Name of the file used in {option}`agenix-shell.secretsPath`.";
         internal = true;
       };
 
@@ -28,8 +25,8 @@
       path = mkOption {
         type = types.str; # TODO or path?
         default = "${cfg.secretsPath}/${config.name}";
-	description = "Path where the decrypted secret is installed.";
-	defaultText = lib.literalExpression ''"''${config.agenix-shell.secretsPath}/<name>"'';
+        description = "Path where the decrypted secret is installed.";
+        defaultText = lib.literalExpression ''"''${config.agenix-shell.secretsPath}/<name>"'';
       };
 
       mode = mkOption {
@@ -80,7 +77,7 @@ in {
   }: {
     options.agenix-shell = {
       package = mkPackageOption pkgs "age" {
-	default = "rage";
+        default = "rage";
       };
 
       _installSecrets = mkOption {
@@ -140,8 +137,8 @@ in {
           runtimeInputs = [];
           text = config.agenix-shell._installSecrets;
         };
-	description = "Script that exports secrets as variables, it's meant to be used as hook in `devShell`s.";
-	defaultText = lib.literalMD "An automatically generated package";
+        description = "Script that exports secrets as variables, it's meant to be used as hook in `devShell`s.";
+        defaultText = lib.literalMD "An automatically generated package";
       };
     };
   });
