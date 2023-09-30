@@ -10,31 +10,31 @@
   cfg = config.agenix-shell;
 
   secretType = types.submodule ({
-    name,
     config,
     ...
   }: {
     options = {
       name = mkOption {
-        default = name;
+        default = config._module.args.name;
+	description = "Name of the file used in {option}`agenix-shell.secretsPath`.";
         internal = true;
       };
 
       file = mkOption {
         type = types.path;
-        description = "Path to the age encrypted secret file.";
+        description = "Age file the secret is loaded from.";
       };
 
       path = mkOption {
         type = types.str; # TODO or path?
         default = "${cfg.secretsPath}/${config.name}";
-        internal = true;
+	description = "Path where the decrypted secret is installed.";
       };
 
       mode = mkOption {
         type = types.str;
         default = "0400";
-        description = "Permissions for the unencrypted secret.";
+        description = "Permissions mode of the decrypted secret in a format understood by chmod.";
       };
     };
   });
@@ -42,9 +42,7 @@ in {
   options.agenix-shell = {
     secrets = mkOption {
       type = types.attrsOf secretType;
-      description = ''
-        Attribute set containing secret declarations.
-      '';
+      description = "Attrset of secrets.";
       example = lib.literalExpression ''
         {
           foo.file = "secrets/foo.age";
@@ -59,7 +57,7 @@ in {
     secretsPath = mkOption {
       type = types.str; # TODO or path?
       default = ''/run/user/$(id -u)/agenix-shell/$(git rev-parse --show-toplevel | xargs basename)'';
-      internal = true;
+      description = "Where the secrets are created.";
     };
 
     identityPaths = mkOption {
@@ -69,7 +67,7 @@ in {
         "$HOME/.ssh/id_rsa"
       ];
       description = ''
-        Paths to keys used by `age` to decrypt secrets.
+        Path to SSH keys to be used as identities in age decryption.
       '';
     };
   };
@@ -136,12 +134,12 @@ in {
 
       installationScript = mkOption {
         type = types.package;
-        internal = true;
         default = pkgs.writeShellApplication {
           name = "install-agenix-shell";
           runtimeInputs = [];
           text = config.agenix-shell._installSecrets;
         };
+	description = "Script that exports secrets as variables, it's meant to be used as hook in `devShell`s.";
       };
     };
   });
