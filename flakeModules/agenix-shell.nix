@@ -29,6 +29,7 @@
         type = types.str; # TODO or path?
         default = "${cfg.secretsPath}/${config.name}";
 	description = "Path where the decrypted secret is installed.";
+	defaultText = lib.literalExpression ''"''${config.agenix-shell.secretsPath}/<name>"'';
       };
 
       mode = mkOption {
