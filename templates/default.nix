@@ -1,9 +1,9 @@
 {config, ...}: {
   flake.templates = {
-    basic = {
-      path = ./basic;
-      description = "Basic example";
+    flake-parts = {
+      path = ./flake-parts;
+      description = "Basic example using flake-parts";
     };
-    default = config.flake.templates.basic;
+    default = config.flake.templates.flake-parts;
   };
 }

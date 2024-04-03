@@ -6,14 +6,14 @@
   inherit (flakePartsArgs) config inputs;
   inherit (pkgs) system;
 
-  flake = (import "${config.flake.templates.basic.path}/flake.nix").outputs {
+  flake = (import "${config.flake.templates.flake-parts.path}/flake.nix").outputs {
     self = flake // {inherit inputs;};
     agenix-shell = config.flake;
     inherit (inputs) flake-parts nixpkgs;
   };
 
   check-secret = pkgs.writeText "check-secret" ''
-    cp -r ${../templates/basic}/* .
+    cp -r ${../templates/flake-parts}/* .
     git init .
     ${flake.devShells.${system}.default.shellHook}
     [[ $foo == "I believe that Club-Mate is overrated" ]] || exit 1
@@ -24,7 +24,7 @@
     cp ${./id_rsa} $out/.ssh/id_rsa
   '';
 in
-  pkgs.runCommand "check-basic-template" {}
+  pkgs.runCommand "check-flake-parts-template" {}
   /*
   Bubblewrap command explanation
     --dir /run \  # secrets are saved in /run
