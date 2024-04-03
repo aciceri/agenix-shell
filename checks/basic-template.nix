@@ -16,7 +16,7 @@
     cp -r ${../templates/basic}/* .
     git init .
     ${flake.devShells.${system}.default.shellHook}
-    [[ $AGENIX_foo == "I believe that Club-Mate is overrated" ]] || exit 1
+    [[ $foo == "I believe that Club-Mate is overrated" ]] || exit 1
   '';
 
   home = pkgs.runCommand "create-home" {} ''
@@ -37,7 +37,7 @@ in
       --dev /dev \
       --bind /build /build \
       --chdir /build \
-      --setenv PATH "${pkgs.git}/bin:${pkgs.busybox}/bin" \
+      --setenv PATH "${pkgs.git}/bin:${pkgs.busybox}/bin:${pkgs.util-linux}/bin" \
       --setenv HOME "${home}" \
       --ro-bind /nix/store /nix/store \
         ${pkgs.bash}/bin/bash ${check-secret} > $out
