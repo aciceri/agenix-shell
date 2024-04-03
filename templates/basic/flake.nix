@@ -3,8 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # agenix-shell.url = "github:aciceri/agenix-shell";
-    agenix-shell.url = "/home/ccr/projects/aciceri/agenix-shell";
+    agenix-shell.url = "github:aciceri/agenix-shell";
   };
 
   outputs = inputs: let
