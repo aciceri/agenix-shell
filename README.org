@@ -1,0 +1,22 @@
+* agenix-shell
+
+Leveraging the power of [[https://github.com/ryantm/agenix][agenix]] this project gives you the ability to inject variables containing secrets into your flakes' ~devShells~.
+
+This simplify a lot the onboarding phase for new developers allowing them to share secrets (it's possible to set who can access which secrets) and make projects more self-contained eliminating the need of external tools.
+
+** Usage
+Minimal knowledge of how  [[https://github.com/ryantm/agenix][agenix]] operates is required.
+
+*** Basic usage
+To write.
+
+*** With ~flake-parts~
+To write.
+
+** How it works
+To write.
+
+** TODO Things to do
+- [ ] Write ~flake-parts~ module that integrates with [[https://github.com/numtide/devshell][devshell]]
+- [ ] Use ~agenix-shell~ in a real project and showcase it here
+- [ ] Add other tasks to this list
