@@ -13,6 +13,7 @@
       imports = [
         ./templates
         ./flakeModules
+        ./packages
         ./formatting
         ./checks
         ./ci

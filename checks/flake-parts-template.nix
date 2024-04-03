@@ -6,10 +6,10 @@
   inherit (flakePartsArgs) config inputs;
   inherit (pkgs) system;
 
-  flake = (import "${config.flake.templates.basic.path}/flake.nix").outputs {
+  flake = (import "${config.flake.templates.flake-parts.path}/flake.nix").outputs {
     self = flake // {inherit inputs;};
     agenix-shell = config.flake;
-    inherit (inputs) nixpkgs;
+    inherit (inputs) flake-parts nixpkgs;
   };
 
   check-secret = pkgs.writeText "check-secret" ''

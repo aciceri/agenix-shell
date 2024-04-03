@@ -6,6 +6,10 @@ flakePartsArgs @ {self, ...}: {
     ...
   }: {
     checks = {
+      flake-parts-template = pkgs.callPackage ./flake-parts-template.nix {
+        inherit flakePartsArgs;
+      };
+
       basic-template = pkgs.callPackage ./basic-template.nix {
         inherit flakePartsArgs;
       };
