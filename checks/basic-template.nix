@@ -29,7 +29,7 @@ in
   Bubblewrap command explanation
     --dir /run \  # secrets are saved in /run
     --dev /dev \  # /dev/null is needed by xargs (used by the sourced script)
-    --ro-bind /nix/store /nix/store \  # store paths must
+    --ro-bind /nix/store /nix/store \  # read the store
   */
   ''
     ${pkgs.bubblewrap}/bin/bwrap \
