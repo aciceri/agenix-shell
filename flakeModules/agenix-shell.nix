@@ -42,7 +42,7 @@
 
       namePath = mkOption {
         type = shellVarType;
-        default = toShellVar "${config._module.args.name}_PATH";
+        default = "${config.name}_PATH";
         description = "Name of the variable containing the path to the secret.";
         defaultText = lib.literalExpression "<name>_PATH";
       };
