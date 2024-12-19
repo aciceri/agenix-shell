@@ -171,11 +171,30 @@ in {
 
       installationScript = mkOption {
         type = types.package;
-        default = pkgs.writeShellApplication {
-          name = "install-agenix-shell";
-          runtimeInputs = [];
-          text = config.agenix-shell._installSecrets;
-        };
+        default = let
+          optsSupported = let
+            fargs = builtins.functionArgs pkgs.writeShellApplication;
+          in
+            fargs ? "bashOptions" && fargs ? "extraShellCheckFlags";
+
+          writer =
+            if optsSupported
+            then pkgs.writeShellApplication
+            else attrs: pkgs.writeShellScriptBin attrs.name attrs.text;
+        in
+          writer ({
+              name = "install-agenix-shell";
+              runtimeInputs = [];
+              text = config.agenix-shell._installSecrets;
+            }
+            // lib.optionalAttrs optsSupported {
+              # Only bail for outright errors; allow style violations.
+              extraShellCheckFlags = ["-S" "error"];
+
+              # This script is meant to be sourced in an interactive shell; do not
+              # touch the user's shell options.
+              bashOptions = [];
+            });
         description = "Script that exports secrets as variables, it's meant to be used as hook in `devShell`s.";
         defaultText = lib.literalMD "An automatically generated package";
       };
