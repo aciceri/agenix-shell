@@ -120,6 +120,7 @@ in {
       _installSecrets = mkOption {
         type = types.str;
         internal = true;
+        readOnly = true;
         default =
           ''
             # shellcheck disable=SC2086
@@ -147,6 +148,7 @@ in {
       _installSecret = mkOption {
         type = types.functionTo types.str;
         internal = true;
+        readOnly = true;
         default = secret: ''
           __agenix_shell_secret_path=${secret.path}
 
