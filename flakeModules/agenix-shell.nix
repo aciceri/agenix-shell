@@ -9,16 +9,40 @@
 
   cfg = config.agenix-shell;
 
+  shellVarHeadRanges = "_A-Za-z";
+  shellVarTailRanges = "${shellVarHeadRanges}0-9";
+  shellVarType = let
+    base = types.strMatching "^[${shellVarHeadRanges}][${shellVarTailRanges}]+$";
+  in
+    base
+    // {
+      name = "shellVar";
+      description = "valid shell variable name (${base.description})";
+    };
+
+  toShellVar = let
+    replacement = "__";
+    convertInvalid = c:
+      if ((builtins.match "^[${shellVarTailRanges}]+$" c) != null)
+      then c
+      else replacement;
+  in
+    name: let
+      prefix = lib.optionalString (builtins.match "^[${shellVarHeadRanges}].*" name == null) replacement;
+    in "${prefix}${lib.stringAsChars convertInvalid name}";
+
   secretType = types.submodule ({config, ...}: {
     options = {
       name = mkOption {
-        default = config._module.args.name;
+        type = shellVarType;
+        default = toShellVar config._module.args.name;
         description = "Name of the variable containing the secret.";
         defaultText = lib.literalExpression "<name>";
       };
 
       namePath = mkOption {
-        default = "${config._module.args.name}_PATH";
+        type = shellVarType;
+        default = toShellVar "${config._module.args.name}_PATH";
         description = "Name of the variable containing the path to the secret.";
         defaultText = lib.literalExpression "<name>_PATH";
       };
