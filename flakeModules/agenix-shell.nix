@@ -129,11 +129,16 @@ in {
             __agenix_shell_identities=()
             # shellcheck disable=2043,2066
             for __agenix_shell_identity in ${builtins.toString cfg.identityPaths}; do
-              test -r "$__agenix_shell_identity" || continue
+              if ! test -r "$__agenix_shell_identity"; then
+                continue
+              fi
+
               __agenix_shell_identities+=(-i "$__agenix_shell_identity")
             done
 
-            test "''${#__agenix_shell_identities[@]}" -eq 0 && echo "[agenix] WARNING: no readable identities found!"
+            if test "''${#__agenix_shell_identities[@]}" -eq 0; then
+              echo "[agenix] WARNING: no readable identities found!"
+            fi
 
             mkdir -p "${cfg.secretsPath}"
           ''
@@ -153,12 +158,21 @@ in {
           __agenix_shell_secret_path=${secret.path}
 
           # shellcheck disable=SC2193
-          [ "$__agenix_shell_secret_path" != "${cfg.secretsPath}/${secret.name}" ] && mkdir -p "$(dirname "$__agenix_shell_secret_path")"
+          if [ "$__agenix_shell_secret_path" != "${cfg.secretsPath}/${secret.name}" ]; then
+            mkdir -p "$(dirname "$__agenix_shell_secret_path")"
+          fi
 
           (
             umask u=r,g=,o=
-            test -f "${secret.file}" || echo '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
-            test -d "$(dirname "$__agenix_shell_secret_path")" || echo "[agenix] WARNING: $(dirname "$__agenix_shell_secret_path") does not exist!"
+
+            if ! test -f "${secret.file}"; then
+              echo '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
+            fi
+
+            if ! test -d "$(dirname "$__agenix_shell_secret_path")"; then
+              echo "[agenix] WARNING: $(dirname "$__agenix_shell_secret_path") does not exist!"
+            fi
+
             LANG=${config.i18n.defaultLocale or "C"} ${lib.getExe config.agenix-shell.agePackage} --decrypt "''${__agenix_shell_identities[@]}" -o "$__agenix_shell_secret_path" "${secret.file}"
           )
 
