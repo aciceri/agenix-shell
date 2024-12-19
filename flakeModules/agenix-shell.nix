@@ -102,7 +102,7 @@ in {
             rm -rf "${cfg.secretsPath}"
 
             __agenix_shell_identities=()
-            # shellcheck disable=2043
+            # shellcheck disable=2043,2066
             for __agenix_shell_identity in ${builtins.toString cfg.identityPaths}; do
               test -r "$__agenix_shell_identity" || continue
               __agenix_shell_identities+=(-i "$__agenix_shell_identity")
