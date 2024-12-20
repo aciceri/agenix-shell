@@ -137,7 +137,7 @@ in {
             done
 
             if test "''${#__agenix_shell_identities[@]}" -eq 0; then
-              echo "[agenix] WARNING: no readable identities found!"
+              echo 1>&2 "[agenix] WARNING: no readable identities found!"
             fi
 
             mkdir -p "${cfg.secretsPath}"
@@ -166,11 +166,11 @@ in {
             umask u=r,g=,o=
 
             if ! test -f "${secret.file}"; then
-              echo '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
+              echo 1>&2 '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
             fi
 
             if ! test -d "$(dirname "$__agenix_shell_secret_path")"; then
-              echo "[agenix] WARNING: $(dirname "$__agenix_shell_secret_path") does not exist!"
+              echo 1>&2 "[agenix] WARNING: $(dirname "$__agenix_shell_secret_path") does not exist!"
             fi
 
             LANG=${config.i18n.defaultLocale or "C"} ${lib.getExe config.agenix-shell.agePackage} --decrypt "''${__agenix_shell_identities[@]}" -o "$__agenix_shell_secret_path" "${secret.file}"
