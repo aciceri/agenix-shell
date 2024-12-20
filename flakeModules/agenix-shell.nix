@@ -9,6 +9,23 @@
 
   cfg = config.agenix-shell;
 
+  duplicateAttrValues = let
+    incrAttr = name: value: attrs: let
+      valueStr = builtins.unsafeDiscardStringContext (toString value);
+    in attrs // {${valueStr} = (attrs.${valueStr} or []) ++ [name];};
+    incrAttrs = name: values: attrs: lib.pipe attrs (map (incrAttr name) values);
+    getAttrValues = attrs: map (lib.flip lib.getAttr attrs);
+  in
+    values:
+      lib.flip lib.pipe [
+        (lib.foldlAttrs (acc: name: item: incrAttrs name (getAttrValues item values) acc) {})
+        (lib.mapAttrs (_: lib.unique))
+        (lib.filterAttrs (_: names: lib.length names > 1))
+      ];
+
+  duplicateShellVars = duplicateAttrValues ["name" "namePath"] cfg.secrets;
+  duplicateFiles = duplicateAttrValues ["file"] cfg.secrets;
+
   shellVarHeadRanges = "_A-Za-z";
   shellVarTailRanges = "${shellVarHeadRanges}0-9";
   shellVarType = let
@@ -121,8 +138,29 @@ in {
         type = types.str;
         internal = true;
         readOnly = true;
-        default =
-          ''
+        default = let
+          formatDuplicates = duplicates: pre: post:
+            lib.optionalString (duplicates != {}) ''
+              printf 1>&2 '[agenix] %s\n' ${lib.escapeShellArg pre}
+              ${lib.concatMapStringsSep "\n" (name: ''
+                printf 1>&2 -- ' - %s (used by: %s)\n' ${lib.escapeShellArgs [name (lib.concatStringsSep ", " (duplicates.${name}))]}
+              '') (builtins.attrNames duplicates)}
+              printf 1>&2 '[agenix] %s\n' ${lib.escapeShellArg post}
+            '';
+        in
+          (formatDuplicates duplicateFiles ''
+              the following output file paths are used more than once in `agenix-shell.secrets`:
+            ''
+            ''
+              only the last secret using a given output file path will be written to that location.
+            '')
+          + (formatDuplicates duplicateShellVars ''
+              the following variable names are used more than once in `agenix-shell.secrets`:
+            ''
+            ''
+              these variables will be set to the values associated with the last secret to use them.
+            '')
+          + ''
             # shellcheck disable=SC2086
             rm -rf "${cfg.secretsPath}"
 
