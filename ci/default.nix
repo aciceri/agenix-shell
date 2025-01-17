@@ -1,7 +1,10 @@
 {
   inputs,
-  withSystem,
+  lib,
+  config,
   ...
 }: {
-  flake.githubActions = inputs.nix-github-actions.lib.mkGithubMatrix (withSystem "x86_64-linux" (ctx: {inherit (ctx.config) checks;}));
+  flake.githubActions = inputs.nix-github-actions.lib.mkGithubMatrix {
+    checks = lib.getAttrs ["x86_64-linux"] config.flake.checks;
+  };
 }
