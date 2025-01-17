@@ -9,16 +9,58 @@
 
   cfg = config.agenix-shell;
 
+  duplicateAttrValues = let
+    incrAttr = name: value: attrs: let
+      valueStr = builtins.unsafeDiscardStringContext (toString value);
+    in
+      attrs // {${valueStr} = (attrs.${valueStr} or []) ++ [name];};
+    incrAttrs = name: values: attrs: lib.pipe attrs (map (incrAttr name) values);
+    getAttrValues = attrs: map (lib.flip lib.getAttr attrs);
+  in
+    values:
+      lib.flip lib.pipe [
+        (lib.foldlAttrs (acc: name: item: incrAttrs name (getAttrValues item values) acc) {})
+        (lib.mapAttrs (_: lib.unique))
+        (lib.filterAttrs (_: names: lib.length names > 1))
+      ];
+
+  duplicateShellVars = duplicateAttrValues ["name" "namePath"] cfg.secrets;
+  duplicateFiles = duplicateAttrValues ["file"] cfg.secrets;
+
+  shellVarHeadRanges = "_A-Za-z";
+  shellVarTailRanges = "${shellVarHeadRanges}0-9";
+  shellVarType = let
+    base = types.strMatching "^[${shellVarHeadRanges}][${shellVarTailRanges}]+$";
+  in
+    base
+    // {
+      name = "shellVar";
+      description = "valid shell variable name (${base.description})";
+    };
+
+  toShellVar = let
+    replacement = "__";
+    convertInvalid = c:
+      if ((builtins.match "^[${shellVarTailRanges}]+$" c) != null)
+      then c
+      else replacement;
+  in
+    name: let
+      prefix = lib.optionalString (builtins.match "^[${shellVarHeadRanges}].*" name == null) replacement;
+    in "${prefix}${lib.stringAsChars convertInvalid name}";
+
   secretType = types.submodule ({config, ...}: {
     options = {
       name = mkOption {
-        default = config._module.args.name;
+        type = shellVarType;
+        default = toShellVar config._module.args.name;
         description = "Name of the variable containing the secret.";
         defaultText = lib.literalExpression "<name>";
       };
 
       namePath = mkOption {
-        default = "${config._module.args.name}_PATH";
+        type = shellVarType;
+        default = "${config.name}_PATH";
         description = "Name of the variable containing the path to the secret.";
         defaultText = lib.literalExpression "<name>_PATH";
       };
@@ -96,45 +138,87 @@ in {
       _installSecrets = mkOption {
         type = types.str;
         internal = true;
-        default =
-          ''
+        readOnly = true;
+        default = let
+          formatDuplicates = duplicates: pre: post:
+            lib.optionalString (duplicates != {}) ''
+              printf 1>&2 '[agenix] %s\n' ${lib.escapeShellArg pre}
+              ${lib.concatMapStringsSep "\n" (name: ''
+                printf 1>&2 -- ' - %s (used by: %s)\n' ${lib.escapeShellArgs [name (lib.concatStringsSep ", " (duplicates.${name}))]}
+              '') (builtins.attrNames duplicates)}
+              printf 1>&2 '[agenix] %s\n' ${lib.escapeShellArg post}
+            '';
+        in
+          (formatDuplicates duplicateFiles ''
+              the following output file paths are used more than once in `agenix-shell.secrets`:
+            ''
+            ''
+              only the last secret using a given output file path will be written to that location.
+            '')
+          + (formatDuplicates duplicateShellVars ''
+              the following variable names are used more than once in `agenix-shell.secrets`:
+            ''
+            ''
+              these variables will be set to the values associated with the last secret to use them.
+            '')
+          + ''
             # shellcheck disable=SC2086
             rm -rf "${cfg.secretsPath}"
 
-            IDENTITIES=()
-            # shellcheck disable=2043
-            for identity in ${builtins.toString cfg.identityPaths}; do
-              test -r "$identity" || continue
-              IDENTITIES+=(-i)
-              IDENTITIES+=("$identity")
+            __agenix_shell_identities=()
+            # shellcheck disable=2043,2066
+            for __agenix_shell_identity in ${builtins.toString cfg.identityPaths}; do
+              if ! test -r "$__agenix_shell_identity"; then
+                continue
+              fi
+
+              __agenix_shell_identities+=(-i "$__agenix_shell_identity")
             done
 
-            test "''${#IDENTITIES[@]}" -eq 0 && echo "[agenix] WARNING: no readable identities found!"
+            if test "''${#__agenix_shell_identities[@]}" -eq 0; then
+              echo 1>&2 "[agenix] WARNING: no readable identities found!"
+            fi
 
             mkdir -p "${cfg.secretsPath}"
           ''
-          + lib.concatStrings (lib.mapAttrsToList (_: config.agenix-shell._installSecret) cfg.secrets);
+          + lib.concatStrings (lib.mapAttrsToList (_: config.agenix-shell._installSecret) cfg.secrets)
+          + ''
+            # Clean up after ourselves
+            # shellcheck disable=SC2154
+            unset "''${!__agenix_shell_@}" || :
+          '';
       };
 
       _installSecret = mkOption {
         type = types.functionTo types.str;
         internal = true;
+        readOnly = true;
         default = secret: ''
-          SECRET_PATH=${secret.path}
+          __agenix_shell_secret_path=${secret.path}
 
           # shellcheck disable=SC2193
-          [ "$SECRET_PATH" != "${cfg.secretsPath}/${secret.name}" ] && mkdir -p "$(dirname "$SECRET_PATH")"
+          if [ "$__agenix_shell_secret_path" != "${cfg.secretsPath}/${secret.name}" ]; then
+            mkdir -p "$(dirname "$__agenix_shell_secret_path")"
+          fi
+
           (
             umask u=r,g=,o=
-            test -f "${secret.file}" || echo '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
-            test -d "$(dirname "$SECRET_PATH")" || echo "[agenix] WARNING: $(dirname "$SECRET_PATH") does not exist!"
-            LANG=${config.i18n.defaultLocale or "C"} ${lib.getExe config.agenix-shell.agePackage} --decrypt "''${IDENTITIES[@]}" -o "$SECRET_PATH" "${secret.file}"
+
+            if ! test -f "${secret.file}"; then
+              echo 1>&2 '[agenix] WARNING: encrypted file ${secret.file} does not exist!'
+            fi
+
+            if ! test -d "$(dirname "$__agenix_shell_secret_path")"; then
+              echo 1>&2 "[agenix] WARNING: $(dirname "$__agenix_shell_secret_path") does not exist!"
+            fi
+
+            LANG=${config.i18n.defaultLocale or "C"} ${lib.getExe config.agenix-shell.agePackage} --decrypt "''${__agenix_shell_identities[@]}" -o "$__agenix_shell_secret_path" "${secret.file}"
           )
 
-          chmod ${secret.mode} "$SECRET_PATH"
+          chmod ${secret.mode} "$__agenix_shell_secret_path"
 
-          ${secret.name}=$(cat "$SECRET_PATH")
-          ${secret.namePath}="$SECRET_PATH"
+          ${secret.name}=$(cat "$__agenix_shell_secret_path")
+          ${secret.namePath}="$__agenix_shell_secret_path"
           export ${secret.name}
           export ${secret.namePath}
         '';
@@ -142,11 +226,30 @@ in {
 
       installationScript = mkOption {
         type = types.package;
-        default = pkgs.writeShellApplication {
-          name = "install-agenix-shell";
-          runtimeInputs = [];
-          text = config.agenix-shell._installSecrets;
-        };
+        default = let
+          optsSupported = let
+            fargs = builtins.functionArgs pkgs.writeShellApplication;
+          in
+            fargs ? "bashOptions" && fargs ? "extraShellCheckFlags";
+
+          writer =
+            if optsSupported
+            then pkgs.writeShellApplication
+            else attrs: pkgs.writeShellScriptBin attrs.name attrs.text;
+        in
+          writer ({
+              name = "install-agenix-shell";
+              runtimeInputs = [];
+              text = config.agenix-shell._installSecrets;
+            }
+            // lib.optionalAttrs optsSupported {
+              # Only bail for outright errors; allow style violations.
+              extraShellCheckFlags = ["-S" "error"];
+
+              # This script is meant to be sourced in an interactive shell; do not
+              # touch the user's shell options.
+              bashOptions = [];
+            });
         description = "Script that exports secrets as variables, it's meant to be used as hook in `devShell`s.";
         defaultText = lib.literalMD "An automatically generated package";
       };
