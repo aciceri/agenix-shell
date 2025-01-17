@@ -1,3 +1,10 @@
 {
-  flake.herculesCI.ciSystems = ["x86_64-linux"];
+  inputs,
+  lib,
+  config,
+  ...
+}: {
+  flake.githubActions = inputs.nix-github-actions.lib.mkGithubMatrix {
+    checks = lib.getAttrs ["x86_64-linux"] config.flake.checks;
+  };
 }
