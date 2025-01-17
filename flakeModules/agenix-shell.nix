@@ -12,7 +12,8 @@
   duplicateAttrValues = let
     incrAttr = name: value: attrs: let
       valueStr = builtins.unsafeDiscardStringContext (toString value);
-    in attrs // {${valueStr} = (attrs.${valueStr} or []) ++ [name];};
+    in
+      attrs // {${valueStr} = (attrs.${valueStr} or []) ++ [name];};
     incrAttrs = name: values: attrs: lib.pipe attrs (map (incrAttr name) values);
     getAttrValues = attrs: map (lib.flip lib.getAttr attrs);
   in
