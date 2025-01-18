@@ -15,11 +15,12 @@
           }));
 
     templateCheck = {
-      flakeSrc,
-      templateSrc,
+      template,
+      flakeSrc ? "${templateSrc}/flake.nix",
+      templateSrc ? template.path,
       ...
     } @ args:
-      pkgs.callPackage ./template-check.nix (builtins.removeAttrs args ["flakeSrc" "templateSrc"]
+      pkgs.callPackage ./template-check.nix (builtins.removeAttrs args ["flakeSrc" "template" "templateSrc"]
         // {
           src = templateSrc;
           flake = callFlake flakeSrc;
@@ -27,13 +28,11 @@
   in {
     checks = {
       flake-parts-template = templateCheck {
-        flakeSrc = "${config.flake.templates.flake-parts.path}/flake.nix";
-        templateSrc = ../templates/flake-parts;
+        template = config.flake.templates.flake-parts;
       };
 
       basic-template = templateCheck {
-        flakeSrc = "${config.flake.templates.basic.path}/flake.nix";
-        templateSrc = ../templates/basic;
+        template = config.flake.templates.basic;
       };
 
       formatting = pkgs.runCommand "check-formatting" {} ''
