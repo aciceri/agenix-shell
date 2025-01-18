@@ -1,4 +1,5 @@
 {
+  lib,
   pkgs,
   flake,
   src,
@@ -28,11 +29,21 @@
       check "''${*:-unexpected differences found in inputs}" ${pkgs.diffutils}/bin/diff -U3 "$left" "$right"
     }
 
+    # Declared variables and functions, minus certain Bash-managed special
+    # variables.
+    clean_set() {
+      set | ${lib.getExe pkgs.gnugrep} -v -e '^_=' -e '^BASH_[A-Z_]\+=' "$@"
+    }
+
     cp -r ${src}/* .
 
     git -c init.defaultBranch=main init .
 
+    clean_set > ./set_pre
+
     ${flake.devShells.${system}.default.shellHook}
+
+    clean_set -e '^foo=' -e '^foo_PATH=' > set_post
 
     # XXX no newline!  Otherwise `diff_check` will fail spuriously.
     printf > ./expected -- '%s' 'I believe that Club-Mate is overrated'
@@ -43,6 +54,7 @@
     check '$foo_PATH is undefined or empty' test -n "''${foo_PATH:-}" || rc="$?"
     check_diff ./expected ./actual "the \$foo variable did not contain the expected text" || rc="$?"
     check_diff ./expected "$foo_PATH" "the file indicated by \$foo_PATH did not contain the expected text" || rc="$?"
+    check_diff ./set_pre ./set_post "the shell environment changed in an unexpected manner while running the shell hook" || rc="$?"
     exit "$rc"
   '';
 
