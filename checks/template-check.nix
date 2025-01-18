@@ -31,7 +31,10 @@
     printf > ./expected -- '%s' 'I believe that Club-Mate is overrated'
     printf > ./actual -- '%s' "$foo"
 
-    check_diff ./expected ./actual "the \$foo variable did not contain the expected text" || exit
+    rc=0
+    check_diff ./expected ./actual "the \$foo variable did not contain the expected text" || rc="$?"
+    check_diff ./expected "$foo_PATH" "the file indicated by \$foo_PATH did not contain the expected text" || rc="$?"
+    exit "$rc"
   '';
 
   home = pkgs.runCommand "create-home" {} ''
