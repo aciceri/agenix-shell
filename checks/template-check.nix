@@ -1,13 +1,22 @@
 {
+  bash,
+  bubblewrap,
+  busybox,
+  diffutils,
+  git,
+  gnugrep,
   lib,
-  pkgs,
+  runCommand,
+  system,
+  util-linux,
+  writeText,
   flake,
   src,
   ...
 }: let
-  inherit (pkgs) system;
+  inherit system;
 
-  check-secret = pkgs.writeText "check-secret" ''
+  check-secret = writeText "check-secret" ''
     check() {
       local msg="''${1?internal error}"
       shift
@@ -26,13 +35,13 @@
       local right="''${1?internal error}"
       shift
 
-      check "''${*:-unexpected differences found in inputs}" ${pkgs.diffutils}/bin/diff -U3 "$left" "$right"
+      check "''${*:-unexpected differences found in inputs}" ${diffutils}/bin/diff -U3 "$left" "$right"
     }
 
     # Declared variables and functions, minus certain Bash-managed special
     # variables.
     clean_set() {
-      set | ${lib.getExe pkgs.gnugrep} -v -e '^_=' -e '^BASH_[A-Z_]\+=' "$@"
+      set | ${lib.getExe gnugrep} -v -e '^_=' -e '^BASH_[A-Z_]\+=' "$@"
     }
 
     cp -r ${src}/* .
@@ -58,12 +67,12 @@
     exit "$rc"
   '';
 
-  home = pkgs.runCommand "create-home" {} ''
+  home = runCommand "create-home" {} ''
     mkdir -p $out/.ssh
     cp ${./id_rsa} $out/.ssh/id_rsa
   '';
 in
-  pkgs.runCommand "check-flake-parts-template" {}
+  runCommand "check-flake-parts-template" {}
   /*
   Bubblewrap command explanation
     --dir /run \  # secrets are saved in /run
@@ -71,13 +80,13 @@ in
     --ro-bind /nix/store /nix/store \  # read the store
   */
   ''
-    ${pkgs.bubblewrap}/bin/bwrap \
+    ${bubblewrap}/bin/bwrap \
       --dir /run \
       --dev /dev \
       --bind /build /build \
       --chdir /build \
-      --setenv PATH "${pkgs.git}/bin:${pkgs.busybox}/bin:${pkgs.util-linux}/bin" \
+      --setenv PATH "${git}/bin:${busybox}/bin:${util-linux}/bin" \
       --setenv HOME "${home}" \
       --ro-bind /nix/store /nix/store \
-        ${pkgs.bash}/bin/bash ${check-secret} > $out
+        ${bash}/bin/bash ${check-secret} > $out
   ''
