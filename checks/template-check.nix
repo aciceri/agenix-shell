@@ -7,6 +7,17 @@
   inherit (pkgs) system;
 
   check-secret = pkgs.writeText "check-secret" ''
+    check() {
+      local msg="''${1?internal error}"
+      shift
+
+      "$@" 1>&2 || {
+        local -i rc="$?"
+        printf 1>&2 -- 'ERROR: %s\n' "$msg"
+        return "$rc"
+      }
+    }
+
     check_diff() {
       local left="''${1?internal error}"
       shift
@@ -14,11 +25,7 @@
       local right="''${1?internal error}"
       shift
 
-      ${pkgs.diffutils}/bin/diff -U3 "$left" "$right" 1>&2 || {
-        local -i rc="$?"
-        printf 1>&2 -- 'ERROR: %s\n' "''${*:-unexpected differences found in inputs}"
-        return "$rc"
-      }
+      check "''${*:-unexpected differences found in inputs}" ${pkgs.diffutils}/bin/diff -U3 "$left" "$right"
     }
 
     cp -r ${src}/* .
@@ -32,6 +39,8 @@
     printf > ./actual -- '%s' "$foo"
 
     rc=0
+    check '$foo is undefined or empty' test -n "''${foo:-}" || rc="$?"
+    check '$foo_PATH is undefined or empty' test -n "''${foo_PATH:-}" || rc="$?"
     check_diff ./expected ./actual "the \$foo variable did not contain the expected text" || rc="$?"
     check_diff ./expected "$foo_PATH" "the file indicated by \$foo_PATH did not contain the expected text" || rc="$?"
     exit "$rc"
