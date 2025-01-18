@@ -7,10 +7,31 @@
   inherit (pkgs) system;
 
   check-secret = pkgs.writeText "check-secret" ''
+    check_diff() {
+      local left="''${1?internal error}"
+      shift
+
+      local right="''${1?internal error}"
+      shift
+
+      ${pkgs.diffutils}/bin/diff -U3 "$left" "$right" 1>&2 || {
+        local -i rc="$?"
+        printf 1>&2 -- 'ERROR: %s\n' "''${*:-unexpected differences found in inputs}"
+        return "$rc"
+      }
+    }
+
     cp -r ${src}/* .
+
     git -c init.defaultBranch=main init .
+
     ${flake.devShells.${system}.default.shellHook}
-    [[ $foo == "I believe that Club-Mate is overrated" ]] || exit 1
+
+    # XXX no newline!  Otherwise `diff_check` will fail spuriously.
+    printf > ./expected -- '%s' 'I believe that Club-Mate is overrated'
+    printf > ./actual -- '%s' "$foo"
+
+    check_diff ./expected ./actual "the \$foo variable did not contain the expected text" || exit
   '';
 
   home = pkgs.runCommand "create-home" {} ''
