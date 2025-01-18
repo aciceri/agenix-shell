@@ -8,7 +8,7 @@
 
   check-secret = pkgs.writeText "check-secret" ''
     cp -r ${src}/* .
-    git init .
+    git -c init.defaultBranch=main init .
     ${flake.devShells.${system}.default.shellHook}
     [[ $foo == "I believe that Club-Mate is overrated" ]] || exit 1
   '';
