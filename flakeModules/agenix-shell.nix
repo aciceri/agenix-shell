@@ -70,13 +70,6 @@
         description = "Age file the secret is loaded from.";
       };
 
-      path = mkOption {
-        type = types.str;
-        default = "${cfg.secretsPath}/${config.name}";
-        description = "Path where the decrypted secret is installed.";
-        defaultText = lib.literalExpression ''"''${config.agenix-shell.secretsPath}/<name>"'';
-      };
-
       mode = mkOption {
         type = types.str;
         default = "0400";
@@ -106,13 +99,6 @@ in {
       description = "Command returning the name of the flake, used as part of the secrets path.";
     };
 
-    secretsPath = mkOption {
-      type = types.str;
-      default = ''/run/user/$(id -u)/agenix-shell/$(${cfg.flakeName})/$(uuidgen)'';
-      defaultText = lib.literalExpression ''"/run/user/$(id -u)/agenix-shell/$(''${config.agenix-shell.flakeName})/$(uuidgen)"'';
-      description = "Where the secrets are stored.";
-    };
-
     identityPaths = mkOption {
       type = types.listOf types.str;
       default = [
@@ -129,10 +115,28 @@ in {
     config,
     pkgs,
     ...
-  }: {
+  }:
+let
+  inherit (pkgs) stdenv;
+in {
     options.agenix-shell = {
       agePackage = mkPackageOption pkgs "age" {
         default = "rage";
+      };
+
+      secretsPath = mkOption {
+        type = types.str;
+        default = if stdenv.hostPlatform.isLinux then
+          ''/run/user/$UID/agenix-shell/$(${cfg.flakeName})/$(uuidgen)''
+        else if stdenv.hostPlatform.isDarwin then
+          ''$TMPDIR/agenix-shell/$(${cfg.flakeName})/$(uuidgen)''
+        else
+          throw "Unsupported system: ${pkgs.stdenv.system}";
+        defaultText = lib.literalExpression ''
+          linux: "/run/user/$(UID)/agenix-shell/$(''${config.agenix-shell.flakeName})/$(uuidgen)"
+          darwin: "$TMPDIR/agenix-shell/$(''${config.agenix-shell.flakeName})/$(uuidgen)"
+        '';
+        description = "Where the secrets are stored.";
       };
 
       _installSecrets = mkOption {
@@ -150,20 +154,20 @@ in {
             '';
         in
           (formatDuplicates duplicateFiles ''
-              the following output file paths are used more than once in `agenix-shell.secrets`:
-            ''
+            the following output file paths are used more than once in `agenix-shell.secrets`:
+          ''
             ''
               only the last secret using a given output file path will be written to that location.
             '')
           + (formatDuplicates duplicateShellVars ''
-              the following variable names are used more than once in `agenix-shell.secrets`:
-            ''
+            the following variable names are used more than once in `agenix-shell.secrets`:
+          ''
             ''
               these variables will be set to the values associated with the last secret to use them.
             '')
           + ''
             # shellcheck disable=SC2086
-            rm -rf "${cfg.secretsPath}"
+            rm -rf "${config.agenix-shell.secretsPath}"
 
             __agenix_shell_identities=()
             # shellcheck disable=2043,2066
@@ -179,7 +183,7 @@ in {
               echo 1>&2 "[agenix] WARNING: no readable identities found!"
             fi
 
-            mkdir -p "${cfg.secretsPath}"
+            mkdir -p "${config.agenix-shell.secretsPath}"
           ''
           + lib.concatStrings (lib.mapAttrsToList config.agenix-shell._installSecret cfg.secrets)
           + ''
@@ -194,12 +198,12 @@ in {
         internal = true;
         readOnly = true;
         default = name: secret: ''
-          __agenix_shell_secret_path=${secret.path}
+          __agenix_shell_secret_path=${config.agenix-shell.secretsPath}/${secret.name}
 
           printf 1>&2 -- '[agenix] decrypting secret %q from %q to %q...\n' ${lib.escapeShellArgs [name secret.file]} "$__agenix_shell_secret_path"
 
           # shellcheck disable=SC2193
-          if [ "$__agenix_shell_secret_path" != "${cfg.secretsPath}/${secret.name}" ]; then
+          if [ "$__agenix_shell_secret_path" != "${config.agenix-shell.secretsPath}/${secret.name}" ]; then
             mkdir -p "$(dirname "$__agenix_shell_secret_path")"
           fi
 
@@ -240,10 +244,14 @@ in {
             else attrs: pkgs.writeShellScriptBin attrs.name attrs.text;
         in
           writer ({
-              name = "install-agenix-shell";
-              runtimeInputs = [];
-              text = config.agenix-shell._installSecrets;
-            }
+            name = "install-agenix-shell";
+            runtimeInputs = [
+              pkgs.git
+              pkgs.util-linux # for uuidgen
+              pkgs.coreutils
+            ];
+            text = config.agenix-shell._installSecrets;
+          }
             // lib.optionalAttrs optsSupported {
               # Only bail for outright errors; allow style violations.
               extraShellCheckFlags = ["-S" "error"];
