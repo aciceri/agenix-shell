@@ -71,13 +71,6 @@
         description = "Age file the secret is loaded from.";
       };
 
-      path = mkOption {
-        type = types.str;
-        default = "${cfg.secretsPath}/${config.name}";
-        description = "Path where the decrypted secret is installed.";
-        defaultText = lib.literalExpression ''"''${config.agenix-shell.secretsPath}/<name>"'';
-      };
-
       mode = mkOption {
         type = types.str;
         default = "0400";
@@ -113,7 +106,7 @@ in {
 
     secretsPath = mkOption {
       type = types.str;
-			default = ".agenix";
+      default = "$HOME/.agenix-shell";
       description = "Name of directory relative to flake root where secrets are stored.";
     };
 
@@ -166,12 +159,13 @@ in {
               these variables will be set to the values associated with the last secret to use them.
             '')
           + ''
-					  SECRETS_PATH="$(${lib.getExe config.flake-root.package})/${cfg.secretsPath}"
-						OLD_DEV=$(hdiutil info | grep $SECRETS_PATH -B 2 | grep '/dev/disk' | awk '{print $1}')
-						umount "$SECRETS_PATH"
-            # fail silently, expected to fail on first run because previous device won't exist yet
-						hdiutil detach "$OLD_DEV" &> /dev/null
-						rm -rf "$SECRETS_PATH"
+						__agenix_shell_flake_hash="$(${lib.getExe config.flake-root.package} | openssl dgst -md5 -r | cut -d ' ' -f1)"
+						__agenix_shell_secrets_path="${cfg.secretsPath}/$__agenix_shell_flake_hash"
+						__agenix_shell_old_dev=$(hdiutil info | grep $__agenix_shell_secrets_path -B 2 | grep '/dev/disk' | awk '{print $1}')
+						umount "$__agenix_shell_secrets_path" &> /dev/null
+						# fail silently, expected to fail on first run because previous device won't exist yet
+						hdiutil detach "$__agenix_shell_old_dev" &> /dev/null
+						rm -rf "$__agenix_shell_secrets_path"
 
             __agenix_shell_identities=()
             # shellcheck disable=2043,2066
@@ -187,12 +181,12 @@ in {
               echo 1>&2 "[agenix] WARNING: no readable identities found!"
             fi
 
-					  if ! diskutil info "$SECRETS_PATH" &> /dev/null; then
+						if ! diskutil info "$__agenix_shell_secrets_path" &> /dev/null; then
 							num_sectors=1048576
-							NEW_DEV=$(hdiutil attach -nomount ram://"$num_sectors" | sed 's/[[:space:]]*$//')
-							newfs_hfs -v "agenix" "$NEW_DEV"
-							mkdir "$SECRETS_PATH"
-							mount -t hfs -o nobrowse,nodev,nosuid,-m=0751 "$NEW_DEV" "$SECRETS_PATH"
+							__agenix_shell_new_dev=$(hdiutil attach -nomount ram://"$num_sectors" | sed 's/[[:space:]]*$//')
+							newfs_hfs -v "agenix" "$__agenix_shell_new_dev" &> /dev/null
+							mkdir -p "$__agenix_shell_secrets_path"
+							mount -t hfs -o nobrowse,nodev,nosuid,-m=0751 "$__agenix_shell_new_dev" "$__agenix_shell_secrets_path"
 						fi
           ''
           + lib.concatStrings (lib.mapAttrsToList config.agenix-shell._installSecret cfg.secrets)
@@ -208,12 +202,12 @@ in {
         internal = true;
         readOnly = true;
         default = name: secret: ''
-          __agenix_shell_secret_path=${secret.path}
+          __agenix_shell_secret_path="$__agenix_shell_secrets_path/${secret.name}"
 
           printf 1>&2 -- '[agenix] decrypting secret %q from %q to %q...\n' ${lib.escapeShellArgs [name secret.file]} "$__agenix_shell_secret_path"
 
           # shellcheck disable=SC2193
-          if [ "$__agenix_shell_secret_path" != "$SECRETS_PATH/${secret.name}" ]; then
+          if [ "$__agenix_shell_secret_path" != "$__agenix_shell_secrets_path/${secret.name}" ]; then
             mkdir -p "$(dirname "$__agenix_shell_secret_path")"
           fi
 
