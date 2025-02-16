@@ -1,5 +1,5 @@
 # This approach is a bit hacky but gives free type checking
-# by re-uusing the flake-parts module system.
+# by re-using the flake-parts module system.
 {
   mkFlake,
   agenix-shell-module,
