@@ -2,6 +2,7 @@
   config,
   lib,
   flake-parts-lib,
+	inputs,
   ...
 }: let
   inherit (lib) mkOption mkPackageOption types;
@@ -85,6 +86,10 @@
     };
   });
 in {
+  imports = [
+    inputs.flake-root.flakeModule
+	];
+
   options.agenix-shell = {
     secrets = mkOption {
       type = types.attrsOf secretType;
@@ -108,9 +113,8 @@ in {
 
     secretsPath = mkOption {
       type = types.str;
-      default = ''/run/user/$(id -u)/agenix-shell/$(${cfg.flakeName})/$(uuidgen)'';
-      defaultText = lib.literalExpression ''"/run/user/$(id -u)/agenix-shell/$(''${config.agenix-shell.flakeName})/$(uuidgen)"'';
-      description = "Where the secrets are stored.";
+			default = ".agenix";
+      description = "Name of directory relative to flake root where secrets are stored.";
     };
 
     identityPaths = mkOption {
@@ -162,8 +166,12 @@ in {
               these variables will be set to the values associated with the last secret to use them.
             '')
           + ''
-            # shellcheck disable=SC2086
-            rm -rf "${cfg.secretsPath}"
+					  SECRETS_PATH="$(${lib.getExe config.flake-root.package})/${cfg.secretsPath}"
+						OLD_DEV=$(hdiutil info | grep $SECRETS_PATH -B 2 | grep '/dev/disk' | awk '{print $1}')
+						umount "$SECRETS_PATH"
+            # fail silently, expected to fail on first run because previous device won't exist yet
+						hdiutil detach "$OLD_DEV" &> /dev/null
+						rm -rf "$SECRETS_PATH"
 
             __agenix_shell_identities=()
             # shellcheck disable=2043,2066
@@ -179,7 +187,13 @@ in {
               echo 1>&2 "[agenix] WARNING: no readable identities found!"
             fi
 
-            mkdir -p "${cfg.secretsPath}"
+					  if ! diskutil info "$SECRETS_PATH" &> /dev/null; then
+							num_sectors=1048576
+							NEW_DEV=$(hdiutil attach -nomount ram://"$num_sectors" | sed 's/[[:space:]]*$//')
+							newfs_hfs -v "agenix" "$NEW_DEV"
+							mkdir "$SECRETS_PATH"
+							mount -t hfs -o nobrowse,nodev,nosuid,-m=0751 "$NEW_DEV" "$SECRETS_PATH"
+						fi
           ''
           + lib.concatStrings (lib.mapAttrsToList config.agenix-shell._installSecret cfg.secrets)
           + ''
@@ -199,7 +213,7 @@ in {
           printf 1>&2 -- '[agenix] decrypting secret %q from %q to %q...\n' ${lib.escapeShellArgs [name secret.file]} "$__agenix_shell_secret_path"
 
           # shellcheck disable=SC2193
-          if [ "$__agenix_shell_secret_path" != "${cfg.secretsPath}/${secret.name}" ]; then
+          if [ "$__agenix_shell_secret_path" != "$SECRETS_PATH/${secret.name}" ]; then
             mkdir -p "$(dirname "$__agenix_shell_secret_path")"
           fi
 
@@ -241,7 +255,7 @@ in {
         in
           writer ({
               name = "install-agenix-shell";
-              runtimeInputs = [];
+              runtimeInputs = with pkgs; [ toybox gawk ];
               text = config.agenix-shell._installSecrets;
             }
             // lib.optionalAttrs optsSupported {
