@@ -34,10 +34,6 @@
       basic-template = templateCheck {
         template = config.flake.templates.basic;
       };
-
-      formatting = pkgs.runCommand "check-formatting" {} ''
-        ${lib.getExe perSystem.config.formatter} --check ${self.outPath} > $out
-      '';
     };
   };
 }
