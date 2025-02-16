@@ -30,6 +30,7 @@
         ./checks
         ./ci
         ./shell
+        ./lib
       ];
     });
 }
