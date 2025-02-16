@@ -6,12 +6,11 @@
   agenixShellConfig ? {secrets = {};},
   stdenv,
 }: let
-  flake = mkFlake {
+  flake = mkFlake ({withSystem, ...}: {
     systems = [stdenv.system];
     imports = [agenix-shell-module];
     agenix-shell = agenixShellConfig;
-    debug = true;
-  };
-  flakePerSystem = flake.debug.perSystem stdenv.system;
+    flake.installationScript = withSystem stdenv.system ({config, ...}: config.agenix-shell.installationScript);
+  });
 in
-  flakePerSystem.agenix-shell.installationScript
+  flake.installationScript
