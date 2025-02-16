@@ -31,8 +31,8 @@ Notice how while this is the format expected by `agenix` script you are not requ
 ```nix
 {
   devShells.${system}.default = let
-    installationScript = inputs.agenix-shell.packages.${system}.installationScript.override {
-      agenixShellConfig.secrets = {
+    installationScript = inputs.agenix-shell.lib.installationScript system {
+      secrets = {
         foo.file = ./secrets/foo.age;
       };
     };
@@ -49,7 +49,7 @@ Check the [basic example](./templates/basic/) for a working example (you will ne
 nix flake init -t github:aciceri/agenix-shell#basic
 ```
 
-Notice that internally this approach uses `flake-parts` for reading `agenixShellConfig`, so you can browse the automatically generated documentation on [flake.parts](https://flake.parts/options/agenix-shell) for understanding all the options available that you can pass in `agenixShellConfig`.
+Notice that internally this approach uses `flake-parts` for evaluating the passed arguments, so you can browse the automatically generated documentation on [flake.parts](https://flake.parts/options/agenix-shell) for understanding all the options available.
 
 
 ### With `flake-parts`

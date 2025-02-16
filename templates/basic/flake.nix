@@ -10,8 +10,8 @@
     system = "x86_64-linux";
     pkgs = inputs.nixpkgs.legacyPackages.${system};
     lib = pkgs.lib;
-    installationScript = inputs.agenix-shell.packages.${system}.installationScript.override {
-      agenixShellConfig.secrets = {
+    installationScript = inputs.agenix-shell.lib.installationScript system {
+      secrets = {
         foo.file = ./secrets/foo.age;
       };
     };
