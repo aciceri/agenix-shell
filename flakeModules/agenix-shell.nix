@@ -2,7 +2,7 @@
   config,
   lib,
   flake-parts-lib,
-	inputs,
+  inputs,
   ...
 }: let
   inherit (lib) mkOption mkPackageOption types;
@@ -81,7 +81,7 @@
 in {
   imports = [
     inputs.flake-root.flakeModule
-	];
+  ];
 
   options.agenix-shell = {
     secrets = mkOption {
@@ -96,18 +96,6 @@ in {
           };
         }
       '';
-    };
-
-    flakeName = mkOption {
-      type = types.str;
-      default = "git rev-parse --show-toplevel | xargs basename";
-      description = "Command returning the name of the flake, used as part of the secrets path.";
-    };
-
-    secretsPath = mkOption {
-      type = types.str;
-      default = "$HOME/.agenix-shell";
-      description = "Name of directory relative to flake root where secrets are stored.";
     };
 
     identityPaths = mkOption {
@@ -126,7 +114,45 @@ in {
     config,
     pkgs,
     ...
-  }: {
+  }: let
+    inherit (pkgs.stdenv) isDarwin;
+
+    prepareSecretsPath =
+      ''
+        __agenix_shell_flake_hash="$(${lib.getExe config.flake-root.package} | openssl dgst -md5 -r | cut -d ' ' -f1)"
+      ''
+      + (
+        if isDarwin
+        then ''
+          __agenix_shell_secrets_path="$HOME/.agenix-shell/$__agenix_shell_flake_hash"
+          __agenix_shell_old_dev=$(hdiutil info | grep $__agenix_shell_secrets_path -B 2 | grep '/dev/disk' | awk '{print $1}')
+          umount "$__agenix_shell_secrets_path" &> /dev/null
+          # fail silently, expected to fail on first run because previous device won't exist yet
+          hdiutil detach "$__agenix_shell_old_dev" &> /dev/null
+        ''
+        else ''
+          __agenix_shell_secrets_path="$XDG_RUNTIME_DIR/agenix-shell/$__agenix_shell_flake_hash";
+        ''
+      )
+      + ''
+        rm -rf "$__agenix_shell_secrets_path"
+      '';
+
+    createSecretsPath =
+      if isDarwin
+      then ''
+        if ! diskutil info "$__agenix_shell_secrets_path" &> /dev/null; then
+          num_sectors=1048576
+          __agenix_shell_new_dev=$(hdiutil attach -nomount ram://"$num_sectors" | sed 's/[[:space:]]*$//')
+          newfs_hfs -v "agenix" "$__agenix_shell_new_dev" &> /dev/null
+          mkdir -p "$__agenix_shell_secrets_path"
+          mount -t hfs -o nobrowse,nodev,nosuid,-m=0751 "$__agenix_shell_new_dev" "$__agenix_shell_secrets_path"
+        fi
+      ''
+      else ''
+        mkdir -p "$__agenix_shell_secrets_path"
+      '';
+  in {
     options.agenix-shell = {
       agePackage = mkPackageOption pkgs "age" {
         default = "rage";
@@ -146,7 +172,13 @@ in {
               printf 1>&2 '[agenix] %s\n' ${lib.escapeShellArg post}
             '';
         in
-          (formatDuplicates duplicateFiles ''
+          (lib.optionalString (!isDarwin) ''
+            # Saving the old PATH set by the shell
+            export __agenix_shell_original_path=$PATH
+            # Set a new PATH in order to make this script "pure"
+            export PATH=${lib.makeBinPath (with pkgs; [coreutils openssl])}
+          '')
+          + (formatDuplicates duplicateFiles ''
               the following output file paths are used more than once in `agenix-shell.secrets`:
             ''
             ''
@@ -159,13 +191,7 @@ in {
               these variables will be set to the values associated with the last secret to use them.
             '')
           + ''
-						__agenix_shell_flake_hash="$(${lib.getExe config.flake-root.package} | openssl dgst -md5 -r | cut -d ' ' -f1)"
-						__agenix_shell_secrets_path="${cfg.secretsPath}/$__agenix_shell_flake_hash"
-						__agenix_shell_old_dev=$(hdiutil info | grep $__agenix_shell_secrets_path -B 2 | grep '/dev/disk' | awk '{print $1}')
-						umount "$__agenix_shell_secrets_path" &> /dev/null
-						# fail silently, expected to fail on first run because previous device won't exist yet
-						hdiutil detach "$__agenix_shell_old_dev" &> /dev/null
-						rm -rf "$__agenix_shell_secrets_path"
+            ${prepareSecretsPath}
 
             __agenix_shell_identities=()
             # shellcheck disable=2043,2066
@@ -181,15 +207,13 @@ in {
               echo 1>&2 "[agenix] WARNING: no readable identities found!"
             fi
 
-						if ! diskutil info "$__agenix_shell_secrets_path" &> /dev/null; then
-							num_sectors=1048576
-							__agenix_shell_new_dev=$(hdiutil attach -nomount ram://"$num_sectors" | sed 's/[[:space:]]*$//')
-							newfs_hfs -v "agenix" "$__agenix_shell_new_dev" &> /dev/null
-							mkdir -p "$__agenix_shell_secrets_path"
-							mount -t hfs -o nobrowse,nodev,nosuid,-m=0751 "$__agenix_shell_new_dev" "$__agenix_shell_secrets_path"
-						fi
+            ${createSecretsPath}
           ''
           + lib.concatStrings (lib.mapAttrsToList config.agenix-shell._installSecret cfg.secrets)
+          + (lib.optionalString (!isDarwin) ''
+            # Restore the original PATH
+            export PATH=$__agenix_shell_original_path
+          '')
           + ''
             # Clean up after ourselves
             # shellcheck disable=SC2154
@@ -249,7 +273,6 @@ in {
         in
           writer ({
               name = "install-agenix-shell";
-              runtimeInputs = with pkgs; [ toybox gawk ];
               text = config.agenix-shell._installSecrets;
             }
             // lib.optionalAttrs optsSupported {
