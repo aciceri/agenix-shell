@@ -1,7 +1,7 @@
 {
   bash,
   bubblewrap,
-  busybox,
+  coreutils,
   diffutils,
   git,
   gnugrep,
@@ -85,8 +85,9 @@ in
       --dev /dev \
       --bind /build /build \
       --chdir /build \
-      --setenv PATH "${git}/bin:${busybox}/bin:${util-linux}/bin" \
+      --setenv PATH "${lib.makeBinPath [git coreutils]}" \
       --setenv HOME "${home}" \
+      --setenv XDG_RUNTIME_DIR "/run/user/1000" \
       --ro-bind /nix/store /nix/store \
-        ${bash}/bin/bash ${check-secret} > $out
+        ${lib.getExe bash} ${check-secret} > $out
   ''

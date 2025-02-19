@@ -2,10 +2,9 @@
   config,
   inputs,
   lib,
-  self,
   ...
 }: {
-  perSystem = {pkgs, ...} @ perSystem: let
+  perSystem = {pkgs, ...}: let
     callFlake = src:
       lib.fix (flake:
         (import src).outputs (inputs
