@@ -1,16 +1,19 @@
 # agenix-shell
 
-Leveraging [age](https://github.com/FiloSottile/age) and [agenix](https://github.com/ryantm/agenix) this project gives you the ability to inject variables containing secrets into your flakes' `devShells`.
+Leveraging [age](https://github.com/FiloSottile/age) and [agenix](https://github.com/ryantm/agenix),
+this project allows you to inject variables containing secrets into your flakes' `devShells`.
 
-This simplify a lot the onboarding phase for new developers allowing them to share secrets (it's possible to set who can access which secrets) and make projects more self-contained eliminating the need of external tools.
-
+This simplifies the onboarding process for new developers by enabling secure secret sharing 
+(with access control) and making projects more self-contained by eliminating the need for external tools.
 
 ## Usage
 
-Minimal knowledge of how [agenix](https://github.com/ryantm/agenix) operates is required, indeed it relies on having the same setup as `agenix` i.e. a `secrets` directory containing all the encrypted secrets and a `secrets.nix` file that lists them and specifies which keys can be used to decrypt each secret.
+Basic knowledge of how [agenix](https://github.com/ryantm/agenix) works is required. 
+It relies on the same setup as `agenix`:
+- A `secrets` directory containing all the encrypted secrets.
+- A `secrets.nix` file that lists the secrets and specifies which keys can decrypt each one.
 
-Example of `secrets/secrets.nix` file:
-
+Example of `secrets/secrets.nix`:
 ```nix
 {
   "foo.age".publicKeys = [
@@ -19,15 +22,18 @@ Example of `secrets/secrets.nix` file:
 }
 ```
 
-Notice how while this is the format expected by `agenix` script you are not required to use the same since `agenix-shell` will require you to set the paths for the `.age` files (exactly as the `agenix` modules do).
+While this is the format expected by `agenix`, you are not strictly bound to it, `agenix-shell` only requires you to specify the paths for the `.age` files, similar to `agenix` modules, following the `secrets/secrets.nix` structure is only useful if you want to use the `agenix` CLI.
 
-`agenix-shell` will inject two environment variables for each secret, one containing the cleartext secret itself and the other one containing the path to the secret. Assuming the example above you will get:
+`agenix-shell` injects two environment variables for each secret:
+- One containing the cleartext secret itself.
+- Another containing the path to the secret (automatically appending `_PATH` to the variable name).
 
-- `foo` containing the secret
-- `foo_PATH` containing the path to the secret (`agenix-shell` automatically appends `_PATH`)
+For example:
+- `foo`: Contains the secret.
+- `foo_PATH`: Contains the path to the secret.
 
+### Basic Usage
 
-### Basic usage
 ```nix
 {
   devShells.${system}.default = let
@@ -43,16 +49,20 @@ Notice how while this is the format expected by `agenix` script you are not requ
   };
 }
 ```
-Check the [basic example](./templates/basic/) for a working example (you will need to delete the encrypted secret and encrypt your own with your key). Otherwise you could copy the [used key](./checks/id_rsa) (**do not use that key in production obviously**).
 
+Check the [basic example](./templates/basic/) for a working setup. You'll need to delete the encrypted secret and encrypt your own using your key. Alternatively, you can use the [provided key](./checks/id_rsa) (**not for production use**).
+
+Initialize with:
 ```bash
 nix flake init -t github:aciceri/agenix-shell#basic
 ```
 
-Notice that internally this approach uses `flake-parts` for evaluating the passed arguments, so you can browse the automatically generated documentation on [flake.parts](https://flake.parts/options/agenix-shell) for understanding all the attributes you can pass to `agenix-shell.lib.installationScript system`.
+Internally, this approach uses `flake-parts` for argument evaluation. Refer to the [flake.parts documentation](https://flake.parts/options/agenix-shell) for a full list of options.
 
+---
 
 ### With `flake-parts`
+
 ```nix
 {
   imports = [
@@ -65,7 +75,7 @@ Notice that internally this approach uses `flake-parts` for evaluating the passe
     };
   };
 
-  perSystem = {pkgs, config, lib, ... }: {
+  perSystem = {pkgs, config, lib, ...}: {
     devShells.default = pkgs.mkShell {
       shellHook = ''
         source ${lib.getExe config.agenix-shell.installationScript}
@@ -75,30 +85,39 @@ Notice that internally this approach uses `flake-parts` for evaluating the passe
 }
 ```
 
-Check the [flake-parts template](./templates/flake-parts) for a working example (you will need to delete the encrypted secret and encrypt your own with your key). Otherwise you could copy the [used key](./checks/id_rsa) (**do not use that key in production obviously**).
+Check the [flake-parts template](./templates/flake-parts) for a working example. Initialize with:
+```bash
+nix flake init -t github:aciceri/agenix-shell#flake-parts
+```
 
-```
-nix flake init -t github:aciceri/agenix-shell#flake-parts 
-```
+---
 
 ### With `devenv`
 
-[Here](./templates/devenv/) a working template.
+Find a working template [here](./templates/devenv/).
 
+Initialize with:
 ```bash
 nix flake init -t github:aciceri/agenix-shell#devenv
 ```
 
-## How it works
+---
 
-The functioning is quite simple, `agenix-shell` exports a configurable script that will be sourced somewhere in the `devShell` (like in an `hook`). This script will:
+## How It Works
 
-- decrypt the configured secrets using user's keys (by default it expects them in `$HOME/.ssh/id_rsa` or `$HOME/.ssh/id_ed25519`)
-- put the decrypted secrets somewhere
-  - on Linux they will end in `$XDG_RUNTIME_DIR/agenix-shell/<hash>` (which means in `/run/user/$UID` that is accessible only by the shell's user and it's mounted on `tmpfs`)
-  - on Darwin a `~/.agenix-shell` directory will be created and then `~/.agenix-shell/<hash>` is mounted on `hfs` (similar to `tmpfs`), secrets will end there.
-- declare two variables for each secret, one containing the secret itself and the other one containing the path to the secret
+The functionality is straightforward:
+1. `agenix-shell` exports a configurable script, which is sourced in the `devShell` (e.g. via a `shellHook`).
+2. The script:
+   - Decrypts secrets using the user's SSH keys (default: `$HOME/.ssh/id_rsa` or `$HOME/.ssh/id_ed25519`).
+   - Stores decrypted secrets in a secure location:
+     - **Linux**: `$XDG_RUNTIME_DIR/agenix-shell/<hash>` (commonly mounted on `tmpfs`).
+     - **Darwin**: `~/.agenix-shell/<hash>` (mounted on `hfs`, similar to `tmpfs`).
+   - Declares two variables per secret:
+     - One containing the secret itself.
+     - Another containing the path to the secret.
 
-That's it! Everything is as customizable as possible using the appropriate options. Check [flake.parts](https://flake.parts/options/agenix-shell) for a complete list (and to know defaults).
+Everything is highly customizable via options. Refer to [flake.parts](https://flake.parts/options/agenix-shell) for a complete list and defaults.
 
-Notice that the script is hygenic, meaning that all the intermediary variables are unset, leaving only the ones containing the secrets. In the same way it also uses a different `PATH` is used, meaning that all the binaries used by the script are declared (only on Linux).
+The script is hygienic:
+- Intermediate variables are unset.
+- A custom `PATH` is used to isolate dependencies (on Linux).
