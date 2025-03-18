@@ -5,7 +5,6 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     agenix-shell.url = "github:aciceri/agenix-shell";
-    flake-root.url = "github:srid/flake-root";
   };
 
   outputs = inputs:
@@ -14,7 +13,6 @@
 
       imports = [
         inputs.agenix-shell.flakeModules.default
-        inputs.flake-root.flakeModule
       ];
 
       agenix-shell = {
