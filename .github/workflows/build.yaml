@@ -1,7 +1,9 @@
 name: Nix Flake actions
 
 on:
-  pull_request:
+  pull_request_target:
+    branches:
+      - master
   push:
       branches:
       - master
