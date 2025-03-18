@@ -12,5 +12,4 @@ jobs:
       - uses: cachix/install-nix-action@v30
       - uses: DeterminateSystems/update-flake-lock@v24
         with:
-          pr-assignees: aciceri
           pr-reviewers: aciceri
