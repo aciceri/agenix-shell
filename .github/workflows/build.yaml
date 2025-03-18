@@ -3,6 +3,8 @@ name: Nix Flake actions
 on:
   pull_request:
   push:
+      branches:
+      - master
 
 jobs:
   nix-matrix:
@@ -29,3 +31,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
       - run: nix build -L '.#${{ matrix.attr }}'
+
+  build-flake-parts-website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - run:  nix build -L github:hercules-ci/flake.parts-website#checks.x86_64-linux.linkcheck --override-input agenix-shell .
