@@ -1,8 +1,7 @@
-{
+{localInputs}: {
   config,
   lib,
   flake-parts-lib,
-  inputs,
   ...
 }: let
   inherit (lib) mkOption mkPackageOption types;
@@ -80,7 +79,7 @@
   });
 in {
   imports = [
-    inputs.flake-root.flakeModule
+    localInputs.flake-root.flakeModule
   ];
 
   options.agenix-shell = {

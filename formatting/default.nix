@@ -4,11 +4,7 @@
     inputs.git-hooks-nix.flakeModule
   ];
 
-  perSystem = {
-    config,
-    pkgs,
-    ...
-  }: {
+  perSystem = {config, ...}: {
     treefmt.config = {
       projectRootFile = ".git/config";
       flakeFormatter = true;
