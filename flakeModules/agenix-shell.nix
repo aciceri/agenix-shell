@@ -1,5 +1,4 @@
-{ localInputs }:
-{
+{localInputs}: {
   config,
   lib,
   flake-parts-lib,
