@@ -1,0 +1,16 @@
+name: Bump flake inputs
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0' # runs weekly on Sunday at 00:00
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - uses: DeterminateSystems/update-flake-lock@v24
+        with:
+          pr-assignees: aciceri
+          pr-reviewers: aciceri
