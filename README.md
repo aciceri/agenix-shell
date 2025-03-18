@@ -23,8 +23,8 @@ Notice how while this is the format expected by `agenix` script you are not requ
 
 `agenix-shell` will inject two environment variables for each secret, one containing the cleartext secret itself and the other one containing the path to the secret. Assuming the example above you will get:
 
-- `FOO` containing the secret
-- `FOO_PATH` containing the path to the secret (`agenix-shell` automatically appends `_PATH`)
+- `foo` containing the secret
+- `foo_PATH` containing the path to the secret (`agenix-shell` automatically appends `_PATH`)
 
 
 ### Basic usage
@@ -43,13 +43,13 @@ Notice how while this is the format expected by `agenix` script you are not requ
   };
 }
 ```
-Check the [basic example](./templates/basic/) for a working example (you will need to delete the encrypted secret and encrypt your own with your key). Otherwise you could copy the [used key](./checks/id_rsa).
+Check the [basic example](./templates/basic/) for a working example (you will need to delete the encrypted secret and encrypt your own with your key). Otherwise you could copy the [used key](./checks/id_rsa) (**do not use that key in production obviously**).
 
 ```bash
 nix flake init -t github:aciceri/agenix-shell#basic
 ```
 
-Notice that internally this approach uses `flake-parts` for evaluating the passed arguments, so you can browse the automatically generated documentation on [flake.parts](https://flake.parts/options/agenix-shell) for understanding all the options available.
+Notice that internally this approach uses `flake-parts` for evaluating the passed arguments, so you can browse the automatically generated documentation on [flake.parts](https://flake.parts/options/agenix-shell) for understanding all the attributes you can pass to `agenix-shell.lib.installationScript system`.
 
 
 ### With `flake-parts`
@@ -75,7 +75,7 @@ Notice that internally this approach uses `flake-parts` for evaluating the passe
 }
 ```
 
-Check the [flake-parts template](./templates/flake-parts) for a working example (you will need to delete the encrypted secret and encrypt your own with your key). Otherwise you could copy the [used key](./checks/id_rsa).
+Check the [flake-parts template](./templates/flake-parts) for a working example (you will need to delete the encrypted secret and encrypt your own with your key). Otherwise you could copy the [used key](./checks/id_rsa) (**do not use that key in production obviously**).
 
 ```
 nix flake init -t github:aciceri/agenix-shell#flake-parts 
@@ -94,15 +94,11 @@ nix flake init -t github:aciceri/agenix-shell#devenv
 The functioning is quite simple, `agenix-shell` exports a configurable script that will be sourced somewhere in the `devShell` (like in an `hook`). This script will:
 
 - decrypt the configured secrets using user's keys (by default it expects them in `$HOME/.ssh/id_rsa` or `$HOME/.ssh/id_ed25519`)
-- put the decrypted secrets in `/run/user/$(id -u)/agenix-shell` (it creates a directory using the flake name and an UUID)
+- put the decrypted secrets somewhere
+  - on Linux they will end in `$XDG_RUNTIME_DIR/agenix-shell/<hash>` (which means in `/run/user/$UID` that is accessible only by the shell's user and it's mounted on `tmpfs`)
+  - on Darwin a `~/.agenix-shell` directory will be created and then `~/.agenix-shell/<hash>` is mounted on `hfs` (similar to `tmpfs`), secrets will end there.
 - declare two variables for each secret, one containing the secret itself and the other one containing the path to the secret
 
 That's it! Everything is as customizable as possible using the appropriate options. Check [flake.parts](https://flake.parts/options/agenix-shell) for a complete list (and to know defaults).
 
-
-## Things to do
-
--   [ ] Write `flake-parts` module that integrates with [devshell](https://github.com/numtide/devshell)
--   [ ] Use `agenix-shell` in a real project and showcase it here
--   [ ] Add other tasks to this list
-
+Notice that the script is hygenic, meaning that all the intermediary variables are unset, leaving only the ones containing the secrets. In the same way it also uses a different `PATH` is used, meaning that all the binaries used by the script are declared (only on Linux).
