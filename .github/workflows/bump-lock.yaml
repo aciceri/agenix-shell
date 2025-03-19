@@ -13,3 +13,4 @@ jobs:
       - uses: DeterminateSystems/update-flake-lock@v24
         with:
           pr-reviewers: aciceri
+          token: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
