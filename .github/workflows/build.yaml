@@ -31,6 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
+      - run: |
+         sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+         sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: nix build -L '.#${{ matrix.attr }}'
 
   build-flake-parts-website:
