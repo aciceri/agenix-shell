@@ -259,6 +259,7 @@ in {
 
       installationScript = mkOption {
         type = types.package;
+        readOnly = true;
         default = let
           optsSupported = let
             fargs = builtins.functionArgs pkgs.writeShellApplication;
@@ -283,6 +284,18 @@ in {
               bashOptions = [];
             });
         description = "Script that exports secrets as variables, it's meant to be used as hook in `devShell`s.";
+        defaultText = lib.literalMD "An automatically generated package";
+      };
+
+      devShell = mkOption {
+        type = types.package;
+        readOnly = true;
+        default = pkgs.mkShell {
+          name = "agenix-shell-devshell";
+          meta.decryption = "Predefined `devShell` providing a `shellHook`, which setting up the secrets as variables.";
+          shellHook = "source ${lib.getExe config.agenix-shell.installationScript}";
+        };
+        description = "Predefined `devShell` providing a `shellHook`, which setting up the secrets as variables.";
         defaultText = lib.literalMD "An automatically generated package";
       };
     };
