@@ -80,6 +80,10 @@ Internally, this approach uses `flake-parts` for argument evaluation. Refer to t
       shellHook = ''
         source ${lib.getExe config.agenix-shell.installationScript}
       '';
+      # or
+      inputsFrom = [
+        config.agenix-shell.devShell
+      ];
     };
   };
 }
@@ -106,7 +110,8 @@ nix flake init -t github:aciceri/agenix-shell#devenv
 ## How It Works
 
 The functionality is straightforward:
-1. `agenix-shell` exports a configurable script, which is sourced in the `devShell` (e.g. via a `shellHook`).
+1. `agenix-shell` exports a configurable script, which is sourced in the `devShell` (e.g. via a `shellHook`),
+  or exports a predefined `devShell`, which can be imported using `inputsFrom`.
 2. The script:
    - Decrypts secrets using the user's SSH keys (default: `$HOME/.ssh/id_rsa` or `$HOME/.ssh/id_ed25519`).
    - Stores decrypted secrets in a secure location:
