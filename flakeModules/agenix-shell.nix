@@ -123,14 +123,14 @@ in {
       + (
         if isDarwin
         then ''
-          __agenix_shell_secrets_path="$HOME/.agenix-shell/$__agenix_shell_flake_hash"
+          __agenix_shell_secrets_path="${config.agenix-shell._secretsPath}/$__agenix_shell_flake_hash"
           __agenix_shell_old_dev=$(hdiutil info | grep $__agenix_shell_secrets_path -B 2 | grep '/dev/disk' | awk '{print $1}')
           umount "$__agenix_shell_secrets_path" &> /dev/null
           # fail silently, expected to fail on first run because previous device won't exist yet
           hdiutil detach "$__agenix_shell_old_dev" &> /dev/null
         ''
         else ''
-          __agenix_shell_secrets_path="$XDG_RUNTIME_DIR/agenix-shell/$__agenix_shell_flake_hash";
+          __agenix_shell_secrets_path="${config.agenix-shell._secretsPath}/$__agenix_shell_flake_hash";
         ''
       )
       + ''
@@ -155,6 +155,28 @@ in {
     options.agenix-shell = {
       agePackage = mkPackageOption pkgs "age" {
         default = "rage";
+      };
+
+      _secretsPath = mkOption {
+        type = types.str;
+        default =
+          if isDarwin
+          then "$HOME/.agenix-shell"
+          else "$XDG_RUNTIME_DIR/agenix-shell";
+        defaultText = lib.literalExpression ''
+          if isDarwin
+            then "$HOME/.agenix-shell"
+            else "$XDG_RUNTIME_DIR/agenix-shell";
+        '';
+        description = ''
+          Path to the directory where decrypted secrets are stored. This option is unlikely to need changing.
+
+          Subdirectories, named by a hash of the flake's absolute path, are created within this directory
+          to store the decrypted secrets for each flake.
+
+          On Darwin, HFS ramdisks are used for storage.  On Linux, due to the requirement for root privileges to mount ramdisks,
+          $XDG_RUNTIME_DIR (typically a tmpfs mount) is used instead.
+        '';
       };
 
       _installSecrets = mkOption {
