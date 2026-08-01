@@ -63,6 +63,11 @@ Internally, this approach uses `flake-parts` for argument evaluation. Refer to t
 
 ### With `flake-parts`
 
+> **Note:** `flake-parts` is no longer provided as a transitive input. Add it directly to your `flake.nix`:
+> ```nix
+> inputs.flake-parts.url = "github:hercules-ci/flake-parts";
+> ```
+
 ```nix
 {
   imports = [
