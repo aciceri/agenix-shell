@@ -114,7 +114,7 @@ in {
     pkgs,
     ...
   }: let
-    inherit (pkgs.stdenv) isDarwin;
+    inherit (pkgs.stdenv.hostPlatform) isDarwin;
 
     prepareSecretsPath =
       ''
