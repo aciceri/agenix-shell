@@ -41,4 +41,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v30
-      - run:  nix build -L github:hercules-ci/flake.parts-website#checks.x86_64-linux.linkcheck --override-input agenix-shell .
+      # TODO: drop this step and the `--override-input gitlab-ci` flag below once
+      # flake.parts-website stops depending on gitlab.horizon-haskell.net, which no
+      # longer serves the repo (cannot be fetched, no mirror exists).
+      # See https://github.com/hercules-ci/flake.parts-website/issues/2026
+      # The stub needs at least one option, otherwise the docs renderer errors out.
+      - name: Create gitlab-ci stub
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitlab-ci-stub"
+          cd "$RUNNER_TEMP/gitlab-ci-stub"
+          echo '{ outputs = _: { flakeModule = ./module.nix; }; }' > flake.nix
+          echo '{ lib, ... }: { options.gitlab-ci-stub = lib.mkOption { type = lib.types.bool; default = false; description = "Placeholder."; }; }' > module.nix
+      - run: nix build --extra-experimental-features "pipe-operators" -L github:hercules-ci/flake.parts-website#checks.x86_64-linux.linkcheck --override-input agenix-shell . --override-input gitlab-ci "path:$RUNNER_TEMP/gitlab-ci-stub"
